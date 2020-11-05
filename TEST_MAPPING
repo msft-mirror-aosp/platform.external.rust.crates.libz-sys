@@ -2,8 +2,8 @@
 {
   "presubmit": [
     {
-      "name": "libz-sys_host_test_src_lib",
-      "host": true
+      "host": true,
+      "name": "libz-sys_host_test_src_lib"
     },
     {
       "name": "libz-sys_device_test_src_lib"
