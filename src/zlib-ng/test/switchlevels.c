@@ -66,6 +66,12 @@ static int compress_chunk(PREFIX3(stream) *strm, int level, int size, int last) 
         goto done;
     }
 
+    err = PREFIX(deflateParams)(strm, level, Z_DEFAULT_STRATEGY);
+    if (err != Z_OK) {
+        fprintf(stderr, "deflateParams() failed with code %d\n", err);
+        goto done;
+    }
+
     compsize = 100 + 2 * PREFIX(deflateBound)(strm, size);
     buf = malloc(size + compsize);
     if (buf == NULL) {
@@ -76,21 +82,11 @@ static int compress_chunk(PREFIX3(stream) *strm, int level, int size, int last) 
         goto free_buf;
     }
 
-    /* Provide only output buffer to deflateParams(). It might need some space to flush the leftovers from the last
-     * deflate(), but we don't want it to compress anything new. */
-    strm->next_in = NULL;
-    strm->avail_in = 0;
-    strm->next_out = buf + size;
-    strm->avail_out = compsize;
-    err = PREFIX(deflateParams)(strm, level, Z_DEFAULT_STRATEGY);
-    if (err != Z_OK) {
-        fprintf(stderr, "deflateParams() failed with code %d\n", err);
-        goto free_buf;
-    }
-
-    /* Provide input buffer to deflate(). */
     strm->next_in = buf;
     strm->avail_in = size;
+    strm->next_out = buf + size;
+    strm->avail_out = compsize;
+
     err = PREFIX(deflate)(strm, last ? Z_FINISH : Z_SYNC_FLUSH);
     if ((!last && err != Z_OK) || (last && err != Z_STREAM_END)) {
         fprintf(stderr, "deflate() failed with code %d\n", err);
