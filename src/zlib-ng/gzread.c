@@ -4,7 +4,6 @@
  */
 
 #include "zbuild.h"
-#include "zutil_p.h"
 #include "gzguts.h"
 
 /* Local functions */
@@ -84,11 +83,11 @@ static int gz_look(gz_state *state) {
     /* allocate read buffers and inflate memory */
     if (state->size == 0) {
         /* allocate buffers */
-        state->in = (unsigned char *)zng_alloc(state->want);
-        state->out = (unsigned char *)zng_alloc(state->want << 1);
+        state->in = (unsigned char *)malloc(state->want);
+        state->out = (unsigned char *)malloc(state->want << 1);
         if (state->in == NULL || state->out == NULL) {
-            zng_free(state->out);
-            zng_free(state->in);
+            free(state->out);
+            free(state->in);
             gz_error(state, Z_MEM_ERROR, "out of memory");
             return -1;
         }
@@ -101,8 +100,8 @@ static int gz_look(gz_state *state) {
         state->strm.avail_in = 0;
         state->strm.next_in = NULL;
         if (PREFIX(inflateInit2)(&(state->strm), 15 + 16) != Z_OK) {    /* gunzip */
-            zng_free(state->out);
-            zng_free(state->in);
+            free(state->out);
+            free(state->in);
             state->size = 0;
             gz_error(state, Z_MEM_ERROR, "out of memory");
             return -1;
@@ -395,11 +394,11 @@ size_t Z_EXPORT PREFIX(gzfread)(void *buf, size_t size, size_t nitems, gzFile fi
         return 0;
 
     /* compute bytes to read -- error on overflow */
-    if (size && SIZE_MAX / size < nitems) {
+    len = nitems * size;
+    if (size && len / size != nitems) {
         gz_error(state, Z_STREAM_ERROR, "request does not fit in a size_t");
         return 0;
     }
-    len = nitems * size;
 
     /* read len or fewer bytes to buf, return the number of full items read */
     return len ? gz_read(state, buf, len) / size : 0;
@@ -590,13 +589,13 @@ int Z_EXPORT PREFIX(gzclose_r)(gzFile file) {
     /* free memory and close file */
     if (state->size) {
         PREFIX(inflateEnd)(&(state->strm));
-        zng_free(state->out);
-        zng_free(state->in);
+        free(state->out);
+        free(state->in);
     }
     err = state->err == Z_BUF_ERROR ? Z_BUF_ERROR : Z_OK;
     gz_error(state, Z_OK, NULL);
     free(state->path);
     ret = close(state->fd);
-    zng_free(state);
+    free(state);
     return ret ? Z_ERRNO : err;
 }
