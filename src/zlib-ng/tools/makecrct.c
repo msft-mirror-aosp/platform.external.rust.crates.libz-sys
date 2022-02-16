@@ -14,9 +14,7 @@ static uint32_t crc_comb[GF2_DIM][GF2_DIM];
 
 static void gf2_matrix_square(uint32_t *square, const uint32_t *mat);
 static void make_crc_table(void);
-static void make_crc_combine_table(void);
-static void print_crc_table(void);
-static void print_crc_combine_table(void);
+static void print_crc32_tables();
 static void write_table(const uint32_t *, int);
 
 
@@ -37,7 +35,7 @@ static void gf2_matrix_square(uint32_t *square, const uint32_t *mat) {
   is just exclusive-or, and multiplying a polynomial by x is a right shift by
   one.  If we call the above polynomial p, and represent a byte as the
   polynomial q, also with the lowest power in the most significant bit (so the
-  byte 0xb1 is the polynomial x^7+x^3+x^2+1), then the CRC is (q*x^32) mod p,
+  byte 0xb1 is the polynomial x^7+x^3+x+1), then the CRC is (q*x^32) mod p,
   where a mod b means the remainder after dividing a by b.
 
   This calculation is done using the shift-register method of multiplying and
@@ -54,7 +52,7 @@ static void gf2_matrix_square(uint32_t *square, const uint32_t *mat) {
   allow for word-at-a-time CRC calculation for both big-endian and little-
   endian machines, where a word is four bytes.
 */
-static void make_crc_table(void) {
+static void make_crc_table() {
     int n, k;
     uint32_t c;
     uint32_t poly;                       /* polynomial exclusive-or pattern */
@@ -85,10 +83,7 @@ static void make_crc_table(void) {
             crc_table[k + 4][n] = ZSWAP32(c);
         }
     }
-}
 
-static void make_crc_combine_table(void) {
-    int n, k;
     /* generate zero operators table for crc32_combine() */
 
     /* generate the operator to apply a single zero bit to a CRC -- the
@@ -115,16 +110,7 @@ static void make_crc_combine_table(void) {
         gf2_matrix_square(crc_comb[n], crc_comb[n - 1]);
 }
 
-static void write_table(const uint32_t *table, int k) {
-    int n;
-
-    for (n = 0; n < k; n++)
-        printf("%s0x%08" PRIx32 "%s", n % 5 ? "" : "    ",
-                (uint32_t)(table[n]),
-                n == k - 1 ? "\n" : (n % 5 == 4 ? ",\n" : ", "));
-}
-
-static void print_crc_table(void) {
+static void print_crc32_tables() {
     int k;
     printf("#ifndef CRC32_TBL_H_\n");
     printf("#define CRC32_TBL_H_\n\n");
@@ -139,39 +125,32 @@ static void print_crc_table(void) {
         printf("  },\n  {\n");
         write_table(crc_table[k], 256);
     }
-    printf("  }\n};\n\n");
-
-    printf("#endif /* CRC32_TBL_H_ */\n");
-}
-
-static void print_crc_combine_table(void) {
-    int k;
-    printf("#ifndef CRC32_COMB_TBL_H_\n");
-    printf("#define CRC32_COMB_TBL_H_\n\n");
-    printf("/* crc32_comb_tbl.h -- zero operators table for CRC combine\n");
-    printf(" * Generated automatically by makecrct.c\n */\n\n");
+    printf("  }\n};\n");
 
     /* print zero operator table */
-    printf("static const uint32_t ");
+    printf("\nstatic const uint32_t ");
     printf("crc_comb[%d][%d] =\n{\n  {\n", GF2_DIM, GF2_DIM);
     write_table(crc_comb[0], GF2_DIM);
     for (k = 1; k < GF2_DIM; k++) {
         printf("  },\n  {\n");
         write_table(crc_comb[k], GF2_DIM);
     }
-    printf("  }\n};\n\n");
+    printf("  }\n};\n");
+    printf("#endif /* CRC32_TBL_H_ */\n");
+}
 
-    printf("#endif /* CRC32_COMB_TBL_H_ */\n");
+static void write_table(const uint32_t *table, int k) {
+    int n;
+
+    for (n = 0; n < k; n++)
+        printf("%s0x%08" PRIx32 "%s", n % 5 ? "" : "    ",
+                (uint32_t)(table[n]),
+                n == k - 1 ? "\n" : (n % 5 == 4 ? ",\n" : ", "));
 }
 
 // The output of this application can be piped out to recreate crc32.h
-int main(int argc, char *argv[]) {
-    if (argc > 1 && strcmp(argv[1], "-c") == 0) {
-        make_crc_combine_table();
-        print_crc_combine_table();
-    } else {
-        make_crc_table();
-        print_crc_table();
-    }
+int main() {
+    make_crc_table();
+    print_crc32_tables();
     return 0;
 }
