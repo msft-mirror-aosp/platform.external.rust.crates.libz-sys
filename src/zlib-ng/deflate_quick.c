@@ -45,8 +45,7 @@ extern const ct_data static_dtree[D_CODES];
 
 Z_INTERNAL block_state deflate_quick(deflate_state *s, int flush) {
     Pos hash_head;
-    int64_t dist;
-    unsigned match_len, last;
+    unsigned dist, match_len, last;
 
 
     last = (flush == Z_FINISH) ? 1 : 0;
@@ -65,7 +64,7 @@ Z_INTERNAL block_state deflate_quick(deflate_state *s, int flush) {
         if (UNLIKELY(s->pending + ((BIT_BUF_SIZE + 7) >> 3) >= s->pending_buf_size)) {
             flush_pending(s->strm);
             if (s->strm->avail_out == 0) {
-                return (last && s->strm->avail_in == 0 && s->bi_valid == 0 && s->block_open == 0) ? finish_started : need_more;
+                return (last && s->strm->avail_in == 0) ? finish_started : need_more;
             }
         }
 
@@ -86,9 +85,9 @@ Z_INTERNAL block_state deflate_quick(deflate_state *s, int flush) {
 
         if (LIKELY(s->lookahead >= MIN_MATCH)) {
             hash_head = functable.quick_insert_string(s, s->strstart);
-            dist = (int64_t)s->strstart - hash_head;
+            dist = s->strstart - hash_head;
 
-            if (dist <= MAX_DIST(s) && dist > 0) {
+            if (dist > 0 && dist < MAX_DIST(s)) {
                 match_len = functable.compare258(s->window + s->strstart, s->window + hash_head);
 
                 if (match_len >= MIN_MATCH) {
@@ -97,7 +96,7 @@ Z_INTERNAL block_state deflate_quick(deflate_state *s, int flush) {
 
                     check_match(s, s->strstart, hash_head, match_len);
 
-                    zng_tr_emit_dist(s, static_ltree, static_dtree, match_len - MIN_MATCH, (uint32_t)dist);
+                    zng_tr_emit_dist(s, static_ltree, static_dtree, match_len - MIN_MATCH, dist);
                     s->lookahead -= match_len;
                     s->strstart += match_len;
                     continue;
