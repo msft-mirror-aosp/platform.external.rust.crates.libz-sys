@@ -21,6 +21,10 @@
 #  define GZIP
 #endif
 
+#define NIL 0
+/* Tail of hash chains */
+
+
 /* ===========================================================================
  * Internal compression state.
  */
@@ -153,7 +157,7 @@ typedef struct internal_state {
      * An index in this array is thus a window index modulo 32K.
      */
 
-    Pos *head; /* Heads of the hash chains or 0. */
+    Pos *head; /* Heads of the hash chains or NIL. */
 
     int block_start;
     /* Window position at the beginning of the current output block. Gets
@@ -194,8 +198,7 @@ typedef struct internal_state {
 
     int nice_match; /* Stop searching when current match exceeds this */
 
-#if defined(__x86_64__) || defined(_M_X64) || defined(__i386) || defined(_M_IX86)
-    /* Only used if X86_PCLMULQDQ_CRC is defined */
+#ifdef X86_PCLMULQDQ_CRC
     unsigned crc0[4 * 5];
 #endif
 
@@ -252,12 +255,10 @@ typedef struct internal_state {
     unsigned int matches;         /* number of string matches in current block */
     unsigned int insert;          /* bytes at end of window left to insert */
 
-    /* compressed_len and bits_sent are only used if ZLIB_DEBUG is defined */
+#ifdef ZLIB_DEBUG
     unsigned long compressed_len; /* total bit length of compressed file mod 2^32 */
     unsigned long bits_sent;      /* bit length of compressed data sent mod 2^32 */
-
-    /* Reserved for future use and alignment purposes */
-    char *reserved_p;
+#endif
 
     uint64_t bi_buf;
     /* Output buffer. bits are inserted starting at the bottom (least significant bits). */
@@ -265,9 +266,7 @@ typedef struct internal_state {
     int32_t bi_valid;
     /* Number of valid bits in bi_buf.  All bits above the last valid bit are always zero. */
 
-    /* Reserved for future use and alignment purposes */
-    int32_t reserved[11];
-} ALIGNED_(8) deflate_state;
+} deflate_state;
 
 typedef enum {
     need_more,      /* block not completed, need more input or more output */
