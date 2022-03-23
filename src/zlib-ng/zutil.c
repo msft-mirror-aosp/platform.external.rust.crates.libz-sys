@@ -5,7 +5,9 @@
 
 #include "zbuild.h"
 #include "zutil.h"
-#include "zutil_p.h"
+#ifdef WITH_GZFILEOP
+#  include "gzguts.h"
+#endif
 
 z_const char * const PREFIX(z_errmsg)[10] = {
     (z_const char *)"need dictionary",     /* Z_NEED_DICT       2  */
@@ -21,7 +23,7 @@ z_const char * const PREFIX(z_errmsg)[10] = {
 };
 
 const char zlibng_string[] =
-    " zlib-ng 2.0.2 forked from zlib";
+    " zlib-ng 1.9.9 forked from zlib 1.2.12.f ";
 
 #ifdef ZLIB_COMPAT
 const char * Z_EXPORT zlibVersion(void) {
@@ -100,12 +102,37 @@ const char * Z_EXPORT PREFIX(zError)(int err) {
     return ERR_MSG(err);
 }
 
-void Z_INTERNAL *zng_calloc(void *opaque, unsigned items, unsigned size) {
+#ifndef MY_ZCALLOC /* Any system without a special alloc function */
+
+#ifndef UNALIGNED_OK
+#  include <malloc.h>
+#  if defined(_WIN32)
+#    define zng_align_alloc(align, size) _aligned_malloc(size, align)
+#    define zng_align_free(ptr)          _aligned_free(ptr)
+#  else
+#    define zng_align_alloc              memalign
+#    define zng_align_free(ptr)          free(ptr)
+#  endif
+#endif
+
+void Z_INTERNAL *zng_calloc(void *opaque, unsigned items, unsigned size)
+{
     (void)opaque;
-    return zng_alloc((size_t)items * (size_t)size);
+#ifndef UNALIGNED_OK
+    return zng_align_alloc(16, items * size);
+#else
+    return sizeof(unsigned int) > 2 ? (void *)malloc(items * size) :
+                              (void *)calloc(items, size);
+#endif
 }
 
 void Z_INTERNAL zng_cfree(void *opaque, void *ptr) {
     (void)opaque;
-    zng_free(ptr);
+#ifndef UNALIGNED_OK
+    zng_align_free(ptr);
+#else
+    free(ptr);
+#endif
 }
+
+#endif /* MY_ZCALLOC */
